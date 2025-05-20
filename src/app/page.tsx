@@ -7,7 +7,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { a } from 'shiki/dist/types/index.d.mjs'
 
 // Sample initial chat messages - replace with your actual implementation
 const initialMessages = [
@@ -22,7 +21,7 @@ export default function Home() {
     const { isAuthenticated, isLoading } = useAuthCheck()
     const [messages, setMessages] = useState(initialMessages)
     const [input, setInput] = useState('')
-
+    const [suggestions, setSuggestions] = useState<string[]>(['How can I help?', 'Tell me more', 'What else?'])
     // Updated implementation
     const handleSubmit = (
         event?: { preventDefault?: () => void } | undefined,
@@ -103,6 +102,7 @@ export default function Home() {
                             // Replace with actual API call
                         }}
                         setMessages={setMessages}
+                        suggestions={suggestions}
                     />
                 </div>
             </main>
