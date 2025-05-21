@@ -7,8 +7,9 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+// import { fetchWithRetry } from '@/utils/api-helpers'
 
-// Sample initial chat messages - replace with your actual implementation
+// Sample initial chat messages
 const initialMessages = [
     {
         id: '1',
@@ -21,18 +22,20 @@ export default function Home() {
     const { isAuthenticated, isLoading } = useAuthCheck()
     const [messages, setMessages] = useState(initialMessages)
     const [input, setInput] = useState('')
+    const [isGenerating, setIsGenerating] = useState(false)
     const [suggestions] = useState<string[]>([
-        'How can I help?',
-        'Tell me more',
-        'What else?'
+        'Tell me about artificial intelligence',
+        'How does machine learning work?',
+        'Explain quantum computing'
     ])
-    // Updated implementation
-    const handleSubmit = (
+
+    const handleSubmit = async (
         event?: { preventDefault?: () => void } | undefined
-        // options?: { experimental_attachments?: FileList | undefined }
     ) => {
         if (event?.preventDefault) event.preventDefault()
         if (!input.trim()) return
+
+        setIsGenerating(true)
 
         const userMessage = {
             id: String(Date.now()),
@@ -43,15 +46,48 @@ export default function Home() {
         setMessages((prev) => [...prev, userMessage])
         setInput('')
 
-        // Simulate AI response - replace with actual API call
-        setTimeout(() => {
-            const aiMessage = {
-                id: String(Date.now() + 1),
-                role: 'assistant',
-                content: `Thanks for your message: "${input}"`
+        try {
+            // Get the current session
+            const {
+                data: { session }
+            } = await supabase.auth.getSession()
+
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token || ''}`
+                },
+                body: JSON.stringify({
+                    messages: [...messages, userMessage]
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch response')
             }
-            setMessages((prev) => [...prev, aiMessage])
-        }, 1000)
+
+            const data = await response.json()
+            setMessages((prev) => [...prev, data.message])
+        } catch (error) {
+            console.error('Error:', error)
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: String(Date.now() + 1),
+                    role: 'assistant',
+                    content:
+                        'Sorry, I encountered an error processing your request.'
+                }
+            ])
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
+    const stopGenerating = () => {
+        // In a real implementation, you would abort the fetch request
+        setIsGenerating(false)
     }
 
     if (isLoading) {
@@ -71,7 +107,7 @@ export default function Home() {
             <header className="bg-background/95 border-b backdrop-blur">
                 <div className="container flex h-14 items-center">
                     <div className="flex items-center gap-2 font-bold">
-                        <span className="text-primary">Chatbot App</span>
+                        <span className="text-primary">Gemini Chat</span>
                     </div>
                     <div className="ml-auto flex items-center gap-2">
                         <Button
@@ -92,21 +128,54 @@ export default function Home() {
                         input={input}
                         handleInputChange={(e) => setInput(e.target.value)}
                         handleSubmit={handleSubmit}
-                        isGenerating={false}
-                        stop={() => {}}
+                        isGenerating={isGenerating}
+                        stop={stopGenerating}
                         append={(message: {
                             role: 'user'
                             content: string
                         }) => {
-                            setMessages((prev) => [
-                                ...prev,
-                                {
-                                    id: String(Date.now()),
-                                    role: 'user',
-                                    content: message.content
-                                }
-                            ])
-                            // Replace with actual API call
+                            const userMessage = {
+                                id: String(Date.now()),
+                                role: 'user',
+                                content: message.content
+                            }
+                            setMessages((prev) => [...prev, userMessage])
+
+                            // This will trigger fetching a response
+                            // Get the current session
+                            supabase.auth
+                                .getSession()
+                                .then(({ data: { session } }) => {
+                                    fetch('/api/chat', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            Authorization: `Bearer ${session?.access_token || ''}`
+                                        },
+                                        body: JSON.stringify({
+                                            messages: [...messages, userMessage]
+                                        })
+                                    })
+                                        .then((response) => response.json())
+                                        .then((data) => {
+                                            setMessages((prev) => [
+                                                ...prev,
+                                                data.message
+                                            ])
+                                        })
+                                        .catch((error) => {
+                                            console.error('Error:', error)
+                                            setMessages((prev) => [
+                                                ...prev,
+                                                {
+                                                    id: String(Date.now() + 1),
+                                                    role: 'assistant',
+                                                    content:
+                                                        'Sorry, I encountered an error processing your request.'
+                                                }
+                                            ])
+                                        })
+                                })
                         }}
                         setMessages={setMessages}
                         suggestions={suggestions}
