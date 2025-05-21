@@ -21,11 +21,15 @@ export default function Home() {
     const { isAuthenticated, isLoading } = useAuthCheck()
     const [messages, setMessages] = useState(initialMessages)
     const [input, setInput] = useState('')
-    const [suggestions, setSuggestions] = useState<string[]>(['How can I help?', 'Tell me more', 'What else?'])
+    const [suggestions] = useState<string[]>([
+        'How can I help?',
+        'Tell me more',
+        'What else?'
+    ])
     // Updated implementation
     const handleSubmit = (
-        event?: { preventDefault?: () => void } | undefined,
-        options?: { experimental_attachments?: FileList | undefined }
+        event?: { preventDefault?: () => void } | undefined
+        // options?: { experimental_attachments?: FileList | undefined }
     ) => {
         if (event?.preventDefault) event.preventDefault()
         if (!input.trim()) return
@@ -90,13 +94,16 @@ export default function Home() {
                         handleSubmit={handleSubmit}
                         isGenerating={false}
                         stop={() => {}}
-                        append={(message: any) => {
+                        append={(message: {
+                            role: 'user'
+                            content: string
+                        }) => {
                             setMessages((prev) => [
                                 ...prev,
                                 {
                                     id: String(Date.now()),
                                     role: 'user',
-                                    content: message
+                                    content: message.content
                                 }
                             ])
                             // Replace with actual API call

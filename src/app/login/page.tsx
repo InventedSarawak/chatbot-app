@@ -29,7 +29,7 @@ export default function LoginPage() {
         setError('')
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password
             })
@@ -39,8 +39,12 @@ export default function LoginPage() {
             }
 
             router.push('/')
-        } catch (error: any) {
-            setError(error.message || 'Failed to sign in')
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                setError(error.message)
+            } else {
+                setError('Failed to sign in')
+            }
         } finally {
             setLoading(false)
         }
